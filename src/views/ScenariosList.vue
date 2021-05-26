@@ -1,10 +1,11 @@
 <template>
     <div class='scenarios-list'>
-<!--        <h1>Scenarios</h1>-->
+        <!--        <h1>Scenarios</h1>-->
         <v-data-table
             :headers='headers'
             :items='scenarios'
             :items-per-page='5'
+            v-on:click:row='navigateToScenario'
         >
             <template v-slot:top>
                 <v-toolbar
@@ -83,6 +84,16 @@
                                                 :items='riskLevels'
                                             ></v-select>
                                         </v-col>
+                                        <v-col
+                                            cols='12'
+                                            sm='6'
+                                            md='6'
+                                        >
+                                            <v-select
+                                                v-model='editedItem.areaOfEffect'
+                                                label='Area of Effect'
+                                                :items='areaOfEffect'></v-select>
+                                        </v-col>
                                     </v-row>
                                 </v-container>
                             </v-card-text>
@@ -135,12 +146,7 @@
                 </v-icon>
             </template>
             <template v-slot:no-data>
-                <v-btn
-                    color='primary'
-                    @click='initialize'
-                >
-                    Reset
-                </v-btn>
+                You haven't created any scenarios yet.
             </template>
         </v-data-table>
     </div>
@@ -169,6 +175,10 @@ export default {
                     value: 'risk',
                 },
                 {
+                    text: 'Area of Effect',
+                    value: 'areaOfEffect',
+                },
+                {
                     text: 'Actions',
                     value: 'actions',
                     sortable: false,
@@ -181,21 +191,33 @@ export default {
             editedItem: {
                 name: '',
                 description: '',
-                impact: 'LOW',
+                impact: 'MINIMAL',
                 risk: 'LOW',
-                id: '',
+                scenarioId: '',
+                areaOfEffect: 'PERSONAL',
             },
             defaultItem: {
                 name: '',
                 description: '',
-                impact: 'LOW',
+                impact: 'MINIMAL',
                 risk: 'LOW',
-                id: '',
+                areaOfEffect: 'PERSONAL',
+                scenarioId: '',
             },
             impactLevels: [
-                'LOW',
-                'MEDIUM',
-                'HIGH',
+                'MINIMAL',
+                'MINOR',
+                'SIGNIFICANT',
+                'MAJOR',
+                'TEOTWAWKI',
+            ],
+            areaOfEffect: [
+                'PERSONAL',
+                'FAMILY',
+                'COMMUNITY',
+                'REGION',
+                'NATION',
+                'WORLDWIDE',
             ],
             riskLevels: [
                 'LOW',
@@ -227,19 +249,22 @@ export default {
             });
         },
         save() {
-            if (this.editedIndex > -1) {
-                shtfpApi.put(`scenarios/${this.editedIndex}`, this.editedItem);
+            const onSave = res => {
+                if (res.status >= 200 && res.status <= 299) {
+                    if (res.config.method === 'post') {
+                        this.scenarios.push(res.data);
+                    } else {
+                        Object.assign(this.scenarios.find(x => x.scenarioId === res.data.scenarioId), res.data);
+                    }
+                    this.close();
+                }
+            };
+
+            if (this.editedItem.scenarioId !== '') {
+                shtfpApi.put(`scenarios/${this.editedItem.scenarioId}`, this.editedItem).then(onSave);
             } else {
-                shtfpApi.post('scenarios', this.editedItem);
+                shtfpApi.post('scenarios', this.editedItem).then(onSave);
             }
-            this.close();
-            shtfpApi.get('scenarios')
-                .then(response => {
-                    this.scenarios = response.data._embedded.scenarios;
-                })
-                .catch(e => {
-                    this.error = e;
-                });
         },
         editItem(item) {
             this.editedIndex = this.scenarios.indexOf(item);
@@ -247,6 +272,7 @@ export default {
             this.dialog = true;
         },
         deleteItem(item) {
+            console.log(item);
             this.editedIndex = this.scenarios.indexOf(item);
             this.editedItem = Object.assign({}, item);
             this.dialogDelete = true;
@@ -259,9 +285,17 @@ export default {
             });
         },
         deleteItemConfirm() {
-            axios.delete(this.editedItem._links.self.href);
-            this.scenarios.splice(this.editedIndex, 1);
-            this.closeDelete();
+            if (this.editedItem._links) {
+                axios.delete(this.editedItem._links.self.href);
+
+                this.scenarios.splice(this.editedIndex, 1);
+                this.closeDelete();
+            } else {
+                // todo: error handling (kek)
+            }
+        },
+        navigateToScenario(evt, { item }) {
+            console.log(item);
         },
     },
 };

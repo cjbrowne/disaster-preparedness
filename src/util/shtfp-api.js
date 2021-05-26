@@ -3,5 +3,5 @@ import axios from 'axios';
 // todo: auth support
 // todo: different baseURL in production
 export const shtfpApi = axios.create({
-    baseURL: 'http://localhost:8080/',
+    baseURL: 'http://localhost:9090/',
 })
