@@ -1,0 +1,18 @@
+{
+  "actions": {
+    "save": "Save",
+    "cancel": "Cancel"
+  },
+  "generic": {
+    "scenario": "Scenario | Scenarios",
+    "description": "Description",
+    "name": "Name",
+    "impact": "Impact",
+    "risk": "Risk",
+    "area-of-effect": "Area of Effect"
+  },
+  "scenarios": {
+    "new": "New Scenario",
+    "no-rows": "You haven't created any scenarios yet."
+  }
+}

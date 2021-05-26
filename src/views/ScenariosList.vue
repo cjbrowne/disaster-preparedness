@@ -1,6 +1,5 @@
 <template>
     <div class='scenarios-list'>
-        <!--        <h1>Scenarios</h1>-->
         <v-data-table
             :headers='headers'
             :items='scenarios'
@@ -11,12 +10,7 @@
                 <v-toolbar
                     flat
                 >
-                    <v-toolbar-title>Scenarios</v-toolbar-title>
-                    <v-divider
-                        class='mx-4'
-                        inset
-                        vertical
-                    ></v-divider>
+                    <v-toolbar-title>{{ $tc('generic.scenario', 2) }}</v-toolbar-title>
                     <v-spacer></v-spacer>
                     <v-dialog
                         v-model='dialog'
@@ -30,7 +24,7 @@
                                 v-bind='attrs'
                                 v-on='on'
                             >
-                                New Item
+                                {{ $t('scenarios.new') }}
                             </v-btn>
                         </template>
                         <v-card>
@@ -48,7 +42,7 @@
                                         >
                                             <v-text-field
                                                 v-model='editedItem.name'
-                                                label='Scenario Name'
+                                                :label="[$tc('generic.scenario', 1), $t('generic.name')].join(' ')"
                                             ></v-text-field>
                                         </v-col>
                                         <v-col
@@ -58,7 +52,7 @@
                                         >
                                             <v-textarea
                                                 v-model='editedItem.description'
-                                                label='Description'
+                                                :label="$t('generic.description')"
                                             ></v-textarea>
                                         </v-col>
                                         <v-col
@@ -68,7 +62,7 @@
                                         >
                                             <v-select
                                                 v-model='editedItem.impact'
-                                                label='Impact'
+                                                :label="$t('generic.impact')"
                                                 :items='impactLevels'
                                             >
                                             </v-select>
@@ -80,7 +74,7 @@
                                         >
                                             <v-select
                                                 v-model='editedItem.risk'
-                                                label='Risk'
+                                                :label="$t('generic.risk')"
                                                 :items='riskLevels'
                                             ></v-select>
                                         </v-col>
@@ -91,7 +85,7 @@
                                         >
                                             <v-select
                                                 v-model='editedItem.areaOfEffect'
-                                                label='Area of Effect'
+                                                :label="$t('generic.area-of-effect')"
                                                 :items='areaOfEffect'></v-select>
                                         </v-col>
                                     </v-row>
@@ -105,14 +99,14 @@
                                     text
                                     @click='close'
                                 >
-                                    Cancel
+                                    {{ $t('actions.cancel') }}
                                 </v-btn>
                                 <v-btn
                                     color='blue darken-1'
                                     text
                                     @click='save'
                                 >
-                                    Save
+                                    {{ $t('actions.save') }}
                                 </v-btn>
                             </v-card-actions>
                         </v-card>
@@ -146,7 +140,7 @@
                 </v-icon>
             </template>
             <template v-slot:no-data>
-                You haven't created any scenarios yet.
+                {{ $t('scenarios.no-rows') }}
             </template>
         </v-data-table>
     </div>
