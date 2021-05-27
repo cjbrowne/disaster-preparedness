@@ -5,6 +5,7 @@
   },
   "generic": {
     "scenario": "Scenario | Scenarios",
+    "plan": "Plan",
     "description": "Description",
     "name": "Name",
     "impact": "Impact",
@@ -14,5 +15,9 @@
   "scenarios": {
     "new": "New Scenario",
     "no-rows": "You haven't created any scenarios yet."
+  },
+  "plans": {
+    "new": "New Plan",
+    "no-rows": "You haven't created any plans yet."
   }
 }

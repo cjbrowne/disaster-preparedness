@@ -3,8 +3,11 @@ import VueRouter from 'vue-router';
 import Dashboard from '@/views/Dashboard';
 import ScenariosList from '@/views/ScenariosList';
 import PlansList from '@/views/PlansList';
+import _ from 'lodash';
 
 Vue.use(VueRouter);
+
+Object.defineProperty(Vue.prototype, '$_', { value: _ });
 
 const routes = [
     {
