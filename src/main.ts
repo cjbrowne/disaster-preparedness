@@ -6,7 +6,7 @@ import i18n from './i18n'
 
 Vue.config.productionTip = false
 
-new Vue({
+export const eventBus = new Vue({
   router,
   vuetify,
   i18n,

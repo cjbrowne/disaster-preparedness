@@ -1,6 +1,9 @@
 import _ from 'lodash';
 import axios, { AxiosInstance } from 'axios';
 import { v4 as uuid } from 'uuid';
+import { eventBus } from '@/main';
+import { ErrorCode } from '@/util/error_codes';
+import BaseModel from '@/models/BaseModel';
 
 interface CacheItem<T> {
     id: string;
@@ -8,12 +11,9 @@ interface CacheItem<T> {
     storage_time: Date;
 }
 
-interface BaseModel {
-    generateId(): typeof uuid;
-}
-
 // don't try to flush more than 50 items at once from the create queue
-const MAX_CREATE_QUEUE_ITEMS_PER_FLUSH = 50;
+const MAX_QUEUE_ITEMS_PER_FLUSH = 50;
+const MAX_ERRORS_BEFORE_LATCH = 3;
 
 /*
 pseudocode on create:
@@ -50,66 +50,128 @@ pseudocode on sync:
  - save lastUpdated (Date.now()) to localStorage
  */
 
+enum Action {
+    UPDATE,
+    DELETE,
+}
+
+interface ActionQueueItem<T extends BaseModel> {
+    action: Action;
+    id: string;
+    value: T | null; // for DELETE actions, value should be null
+    requested: Date;
+}
+
+function *idGenerator(): Generator<string, string, string> {
+    while(true) {
+        yield uuid();
+    }
+}
 
 export class CachingRepository<T extends BaseModel> {
 
-    private readonly createQueue: T[];
+    private readonly actionQueue: ActionQueueItem<T>[];
 
-    private cache: Record<string, CacheItem<T>>;
+    private readonly cache: Record<string, CacheItem<T>>;
     private http: AxiosInstance;
+    private errorLatch: boolean;
 
-    constructor(baseURL: string) {
-        this.cache = {};
-        this.createQueue = [];
+    constructor(baseURL: string, token: string, private cacheKeyPrefix: string = '') {
+        const localStorageCache = localStorage.getItem([cacheKeyPrefix, 'cache'].join('.'))
+        if ( localStorageCache !== null ) {
+            this.cache = JSON.parse(localStorageCache);
+        } else {
+            this.cache = {};
+        }
+        this.actionQueue = [];
         this.http = axios.create({
             baseURL
         });
+        setInterval(async () => {
+            await this.sync();
+        }, 500);
+        this.errorLatch = false;
     }
 
-    findById(key: string): T | undefined {
+    async findById(key: string): Promise<T | undefined> {
         return _.get(this.cache, key)?.value;
     }
 
-    findAll(): T[] {
-        return [..._.chain(this.cache).values().map('value').value(), ...this.createQueue];
+    async findAll(): Promise<T[]> {
+        return _.chain(this.cache).values().map('value').value();
     }
 
-    set(id: typeof uuid, value: T) {
-        return _.set(this.cache, id.toString(), value);
+    async create(value: T): Promise<T> {
+        const id = idGenerator().next().value;
+        value.id = id;
+        return this.update(id, value);
     }
 
-    add(value: T) {
-        const id = value.generateId();
-        _.set(this.cache, id.toString(), value);
-    }
-
-    delete(id: typeof uuid) {
-
-    }
-
-    sync() {
-        // first, sync with local storage
-        _.each(this.cache, (v: CacheItem<T>, k: string) => {
-            localStorage.setItem(k, JSON.stringify(v));
+    async update(id: string, value: T): Promise<T> {
+        this.actionQueue.push({
+            action: Action.UPDATE,
+            id,
+            requested: new Date(),
+            value
         });
+        _.set<CacheItem<T>>(this.cache, id, {
+            id,
+            value,
+            storage_time: new Date()
+        } as CacheItem<T>);
+        return value;
     }
 
-    private flushCreateQueue(stackDepth: number) {
-        if (this.createQueue.length > 0 && stackDepth < MAX_CREATE_QUEUE_ITEMS_PER_FLUSH) {
+    async delete(id: string) {
+        this.actionQueue.push({
+            action: Action.DELETE,
+            id,
+            requested: new Date(),
+            value: null,
+        });
+        _.unset(this.cache, id);
+        console.log(`Deleting ${id}`, this.cache);
+    }
+
+    async sync() {
+        // first, sync cache with local storage
+        localStorage.setItem([this.cacheKeyPrefix, 'cache'].join('.'), JSON.stringify(this.cache));
+        // flush action queue to API
+        await this.flushActionQueue(0, 0);
+        // fetch actions to unwind onto our own data
+        
+        // prompt user to resolve any conflicts
+    }
+
+    private async flushActionQueue(stackDepth: number, errorCount: number) {
+        if(errorCount > MAX_ERRORS_BEFORE_LATCH) {
+            this.errorLatch = true;
+        }
+        if (!this.errorLatch && this.actionQueue.length > 0 && stackDepth < MAX_QUEUE_ITEMS_PER_FLUSH) {
             // take an element from the head of the queue
-            // note the pointless typecast - thank TypeScript's rather quirky type system for that one
-            const newEntity = this.createQueue.shift() as T;
+            const action = this.actionQueue.shift() as ActionQueueItem<T>;
 
-            this.http.post('', newEntity).then(res => {
-                if (res.status > 200 && res.status < 299) {
-
-                } else {
+            await this.http.post('actions', action).then(res => {
+                // note: only retry 5xx errors
+                if (res.status > 500 && res.status < 599) {
                     // put the entity back on the queue so it gets retried later
-                    this.createQueue.push(newEntity);
+                    this.actionQueue.push(action);
+                } else if (res.status > 400 && res.status < 499) {
+                    errorCount++;
+                    eventBus.$emit('error', {
+                        code: ErrorCode.E_SYNCFAILED,
+                        message: 'Could not sync action with backend',
+                        action,
+                        reason: res.data,
+                    })
                 }
+            }).catch((e) => {
+                errorCount++;
+                // retry action later if an error occurred
+                this.actionQueue.push(action);
             });
 
-            this.flushCreateQueue(stackDepth + 1);
+            await this.flushActionQueue(stackDepth + 1, errorCount);
         }
     }
 }

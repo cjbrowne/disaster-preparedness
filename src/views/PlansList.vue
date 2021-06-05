@@ -66,7 +66,7 @@
                                             <v-select
                                                 v-model='editedItem.linkedScenarios'
                                                 multiple=true
-                                                :items='scenarios'
+                                                :items='scenarioOptions'
                                             ></v-select>
                                         </v-col>
                                     </v-row>
@@ -128,16 +128,17 @@
 </template>
 
 <script>
-import { shtfpApi } from '@/util/shtfp-api';
-import axios from 'axios';
+import { getRepository } from '@/util/repositories';
 import _ from 'lodash';
+import Plan, { PLAN_ENDPOINT } from '@/models/Plan';
+import Scenario, { SCENARIO_ENDPOINT } from '@/models/Scenario';
 
 export default {
     name: 'plansList',
     data() {
         return {
             plans: [],
-            scenarios: [],
+            scenarioOptions: [],
             headers: [
                 {
                     text: 'Name',
@@ -161,13 +162,13 @@ export default {
                 name: '',
                 description: '',
                 linkedScenarios: [],
-                planId: '',
+                id: '',
             },
             defaultItem: {
                 name: '',
                 description: '',
                 linkedScenarios: [],
-                planId: '',
+                id: '',
             },
         };
     },
@@ -178,19 +179,23 @@ export default {
 
     },
     created() {
-        shtfpApi.get('plans?projection=planProjection')
-            .then(response => {
-                this.plans = response.data._embedded.plans;
+        const planRepository = getRepository(PLAN_ENDPOINT, Plan);
+        const scenariosRepository = getRepository(SCENARIO_ENDPOINT, Scenario);
+        planRepository.findAll()
+            .then(plans => {
+                this.plans = plans;
             })
             .catch(e => {
                 this.error = e;
             });
-        shtfpApi.get('scenarios')
-            .then(response => {
-                this.scenarios = _.map(response.data._embedded.scenarios, sc => ({
-                    text: sc.name,
-                    value: {scenarioId: sc.scenarioId}
+        scenariosRepository.findAll()
+            .then(scenarios => {
+                // todo: move this map later on so we don't need to discard data
+                this.scenarioOptions = _.map(scenarios, sc => ({
+                    text: sc.value.name,
+                    value: {id: sc.value.id}
                 }));
+                console.log(this.scenarioOptions);
             }).catch(e => {
             this.error = e;
         });
@@ -204,22 +209,23 @@ export default {
             });
         },
         save() {
-            const onSave = res => {
-                if (res.status >= 200 && res.status <= 299) {
-                    console.log(res);
-                    if (res.config.method === 'post') {
-                        this.plans.push(res.data);
-                    } else {
-                        Object.assign(this.plans.find(x => x.planId === res.data.planId), res.data);
-                    }
-                    this.close();
+            const planRepository = getRepository(PLAN_ENDPOINT, Plan);
+            const onSave = plan => {
+                if (this.plans.find(x => x.id === plan.id)) {
+                    Object.assign(
+                        this.plans.find(x => x.id === plan.id),
+                        plan,
+                    );
+                } else {
+                    this.plans.push(plan);
                 }
+                this.close();
             };
 
-            if (this.editedItem.planId !== '') {
-                shtfpApi.put(`plans/${this.editedItem.planId}`, this.editedItem).then(onSave);
+            if (this.editedItem.id !== '') {
+                planRepository.update(this.editedItem.id, this.editedItem).then(onSave);
             } else {
-                shtfpApi.post('plans', this.editedItem).then(onSave);
+                planRepository.create(this.editedItem).then(onSave);
             }
         },
         editItem(item) {
@@ -241,14 +247,11 @@ export default {
             });
         },
         deleteItemConfirm() {
-            if (this.editedItem._links) {
-                axios.delete(this.editedItem._links.self.href);
+            const planRepository = getRepository(PLAN_ENDPOINT, Plan);
+            planRepository.delete(this.editedItem.id);
 
-                this.plans.splice(this.editedIndex, 1);
-                this.closeDelete();
-            } else {
-                // todo: error handling (kek)
-            }
+            this.plans.splice(this.editedIndex, 1);
+            this.closeDelete();
         },
         navigateToPlan(evt, { item }) {
             console.log(item);

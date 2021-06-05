@@ -1,7 +1,10 @@
 import Vue from 'vue';
 import VueRouter from 'vue-router';
+// @ts-ignore - vue imports into ts files cause webstorm to throw a wobbly
 import Dashboard from '@/views/Dashboard';
+// @ts-ignore - vue imports into ts files cause webstorm to throw a wobbly
 import ScenariosList from '@/views/ScenariosList';
+// @ts-ignore - vue imports into ts files cause webstorm to throw a wobbly
 import PlansList from '@/views/PlansList';
 import _ from 'lodash';
 

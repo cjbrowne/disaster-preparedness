@@ -147,8 +147,8 @@
 </template>
 
 <script>
-import { shtfpApi } from '@/util/shtfp-api';
-import axios from 'axios';
+import { getRepository } from '@/util/repositories';
+import Scenario, { SCENARIO_ENDPOINT } from '@/models/Scenario';
 
 export default {
     name: 'ScenariosList',
@@ -187,7 +187,7 @@ export default {
                 description: '',
                 impact: 'MINIMAL',
                 risk: 'LOW',
-                scenarioId: '',
+                id: '',
                 areaOfEffect: 'PERSONAL',
             },
             defaultItem: {
@@ -196,7 +196,7 @@ export default {
                 impact: 'MINIMAL',
                 risk: 'LOW',
                 areaOfEffect: 'PERSONAL',
-                scenarioId: '',
+                id: '',
             },
             impactLevels: [
                 'MINIMAL',
@@ -226,9 +226,11 @@ export default {
         },
     },
     created() {
-        shtfpApi.get('scenarios')
-            .then(response => {
-                this.scenarios = response.data._embedded.scenarios;
+        const scenariosRepository = getRepository(SCENARIO_ENDPOINT, Scenario);
+        scenariosRepository.findAll()
+            .then(scenarios => {
+                console.log(scenarios);
+                this.scenarios = scenarios;
             })
             .catch(e => {
                 this.error = e;
@@ -243,21 +245,25 @@ export default {
             });
         },
         save() {
-            const onSave = res => {
-                if (res.status >= 200 && res.status <= 299) {
-                    if (res.config.method === 'post') {
-                        this.scenarios.push(res.data);
-                    } else {
-                        Object.assign(this.scenarios.find(x => x.scenarioId === res.data.scenarioId), res.data);
-                    }
-                    this.close();
+            const scenariosRepository =
+                getRepository(SCENARIO_ENDPOINT, Scenario);
+
+            const onSave = scenario => {
+                if (this.scenarios.find(x => x.id === scenario.id)) {
+                    Object.assign(
+                        this.scenarios.find(x => x.id === scenario.id),
+                        scenario,
+                    );
+                } else {
+                    this.scenarios.push(scenario);
                 }
+                this.close();
             };
 
-            if (this.editedItem.scenarioId !== '') {
-                shtfpApi.put(`scenarios/${this.editedItem.scenarioId}`, this.editedItem).then(onSave);
+            if (this.editedItem.id !== '') {
+                scenariosRepository.update(this.editedItem.id, this.editedItem).then(onSave);
             } else {
-                shtfpApi.post('scenarios', this.editedItem).then(onSave);
+                scenariosRepository.create(this.editedItem).then(onSave);
             }
         },
         editItem(item) {
@@ -266,7 +272,6 @@ export default {
             this.dialog = true;
         },
         deleteItem(item) {
-            console.log(item);
             this.editedIndex = this.scenarios.indexOf(item);
             this.editedItem = Object.assign({}, item);
             this.dialogDelete = true;
@@ -279,14 +284,12 @@ export default {
             });
         },
         deleteItemConfirm() {
-            if (this.editedItem._links) {
-                axios.delete(this.editedItem._links.self.href);
+            const scenariosRepository =
+                getRepository(SCENARIO_ENDPOINT, Scenario);
+            scenariosRepository.delete(this.editedItem.id);
 
-                this.scenarios.splice(this.editedIndex, 1);
-                this.closeDelete();
-            } else {
-                // todo: error handling (kek)
-            }
+            this.scenarios.splice(this.editedIndex, 1);
+            this.closeDelete();
         },
         navigateToScenario(evt, { item }) {
             console.log(item);
