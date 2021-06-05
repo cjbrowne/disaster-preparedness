@@ -65,7 +65,7 @@
                                         >
                                             <v-select
                                                 v-model='editedItem.linkedScenarios'
-                                                multiple=true
+                                                multiple='true'
                                                 :items='scenarioOptions'
                                             ></v-select>
                                         </v-col>
@@ -138,7 +138,7 @@ export default {
     data() {
         return {
             plans: [],
-            scenarioOptions: [],
+            scenarios: [],
             headers: [
                 {
                     text: 'Name',
@@ -176,7 +176,12 @@ export default {
         formTitle() {
             return this.editedIndex === -1 ? 'New plan' : 'Edit plan';
         },
-
+        scenarioOptions() {
+            return _.map(this.scenarios, scenario => ({
+                text: scenario.name,
+                value: scenario,
+            }));
+        }
     },
     created() {
         const planRepository = getRepository(PLAN_ENDPOINT, Plan);
@@ -188,17 +193,14 @@ export default {
             .catch(e => {
                 this.error = e;
             });
+
         scenariosRepository.findAll()
             .then(scenarios => {
-                // todo: move this map later on so we don't need to discard data
-                this.scenarioOptions = _.map(scenarios, sc => ({
-                    text: sc.value.name,
-                    value: {id: sc.value.id}
-                }));
-                console.log(this.scenarioOptions);
-            }).catch(e => {
-            this.error = e;
-        });
+                this.scenarios = scenarios;
+            })
+            .catch(e => {
+                this.error = e;
+            });
     },
     methods: {
         close() {
@@ -254,7 +256,7 @@ export default {
             this.closeDelete();
         },
         navigateToPlan(evt, { item }) {
-            console.log(item);
+            console.log('navigating to item', item);
         },
     },
 };
