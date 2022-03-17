@@ -6,6 +6,8 @@ import Dashboard from '@/views/Dashboard';
 import ScenariosList from '@/views/ScenariosList';
 // @ts-ignore - vue imports into ts files cause webstorm to throw a wobbly
 import PlansList from '@/views/PlansList';
+// @ts-ignore - vue imports into ts files cause webstorm to throw a wobbly
+import Inventory from '@/views/Inventory';
 import _ from 'lodash';
 
 Vue.use(VueRouter);
@@ -28,6 +30,11 @@ const routes = [
         name: 'Response Plans',
         component: PlansList,
     },
+    {
+        path: '/inventory',
+        name: 'Inventory',
+        component: Inventory,
+    }
 ];
 
 const router = new VueRouter({

@@ -70,12 +70,25 @@ export default {
         drawer: false,
         group: null,
         items: [
-            { title: 'Home', icon: 'mdi-castle', path: '/' },
-            { title: 'Scenarios', icon: 'mdi-biohazard', path: '/scenarios' },
+            {
+                title: 'Home',
+                icon: 'mdi-castle',
+                path: '/'
+            },
+            {
+                title: 'Scenarios',
+                icon: 'mdi-biohazard',
+                path: '/scenarios'
+            },
             {
                 title: 'Response Plans',
                 icon: 'mdi-floor-plan',
                 path: '/plans',
+            },
+            {
+                title: 'Inventory',
+                icon: 'mdi-bag-personal',
+                path: '/inventory',
             },
         ],
     }),
